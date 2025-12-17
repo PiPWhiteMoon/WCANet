@@ -1,3 +1,2 @@
-RGBTSOD
-通过网盘分享的文件：WCA-VI-RGBT1500.zip等3个文件
-链接: https://pan.baidu.com/s/1Qc57usywq8ZmRYj4hjfK0g 提取码: hsgk
+WCANet for RGBTSOD
+You can access our salient prediction maps via the Baidu Netdisk link, including those from RGBT datasets (VT821, VT1000, VT5000, VI-RGBT1500) and four RGBD datasets. link: https://pan.baidu.com/s/1AEYLIN6tR0vpEmPIbMz09A?pwd=nxuk
