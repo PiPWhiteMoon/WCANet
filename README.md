@@ -11,7 +11,9 @@ You can access our salient prediction maps via the Baidu Netdisk link, including
 link: https://pan.baidu.com/s/1AEYLIN6tR0vpEmPIbMz09A?pwd=nxuk pin: nxuk.
 
 <img width="867" height="451" alt="image" src="https://github.com/user-attachments/assets/d8ebb763-f145-4238-90f9-6f82a167e06c" />
+
 <img width="415" height="241" alt="image" src="https://github.com/user-attachments/assets/9d1ac424-9769-4433-95d5-6efd3dfa53db" />
+
 <img width="414" height="415" alt="image" src="https://github.com/user-attachments/assets/f57fd32c-43fe-44e9-bc34-c9c2ee1f8e3e" />
 
 ## Pretraining Models
