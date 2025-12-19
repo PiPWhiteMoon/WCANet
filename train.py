@@ -74,7 +74,7 @@ def linear_annealing(init, fin, step, annealing_steps):
 
 
 CE = torch.nn.BCEWithLogitsLoss()
-IOU = pytorch_iou.IOU(size_average=True)
+IOU = torch_iou.IOU(size_average=True)
 
 # 超参数
 step = 0
@@ -106,8 +106,6 @@ def train(train_loader, model, optimizer, epoch, save_path):
 
             s1, s2, s3, s4, s1_sig, s2_sig, s3_sig, s4_sig, edge, lat = model(images, depths)
 
-            # 新增边界损失权重参数
-
             loss1 = CE(s1, gts) + IOU(s1_sig, gts)
             loss2 = CE(s2, gts) + IOU(s2_sig, gts)
             loss3 = CE(s3, gts) + IOU(s3_sig, gts)
@@ -135,7 +133,7 @@ def train(train_loader, model, optimizer, epoch, save_path):
 
                 with torch.no_grad():
 
-                    # 原始图像可视化（保持原有）
+                    # 图像可视化
                     grid_image = make_grid(images[0].clone().cpu().data, 1, normalize=True)
                     writer.add_image('train/RGB', grid_image, step)
                     grid_image = make_grid(depths[0].clone().cpu().data, 1, normalize=True)
