@@ -10,7 +10,7 @@ import logging
 import torch.backends.cudnn as cudnn
 from config import opt
 from torch import amp
-from networks import pytorch_iou
+import torch_iou
 
 # set the device for training
 
