@@ -6,7 +6,7 @@ from pytorch_wavelets import DTCWTForward, DTCWTInverse
 from torch.nn.functional import kl_div
 import torch.nn.functional as F
 from pytorch_msssim import MS_SSIM
-from networks.swinNet import SwinTransformer,SwinNet
+
 class BasicConv2d(nn.Module):
     def __init__(self, in_planes, out_planes, kernel_size=3, stride=1, padding=1, dilation=1):
         super(BasicConv2d, self).__init__()
@@ -65,7 +65,7 @@ class SGS(nn.Module):
         super().__init__()
         self.reduced_channels = channels // reduction
 
-        # 多尺度空洞卷积（避免上/下采样）
+        # 多尺度空洞卷积
         self.scales = nn.ModuleList()
         for dilation in dilations:
             self.scales.append(nn.Sequential(
@@ -77,10 +77,10 @@ class SGS(nn.Module):
 
         # 精简门控生成器
         self.gate1 = nn.Sequential(
-            nn.Conv2d(3 * self.reduced_channels, channels, 1),  # 通道压缩
+            nn.Conv2d(3 * self.reduced_channels, channels, 1),
             nn.GroupNorm(4, channels),
             nn.GELU(),
-            nn.Conv2d(channels, 2, 1),  # 直接输出两个模态的权重
+            nn.Conv2d(channels, 2, 1), 
             nn.Sigmoid()  # 使用Sigmoid约束到[0,1]
         )
 
@@ -93,7 +93,7 @@ class SGS(nn.Module):
         self.SA = SALayer()
 
     def forward(self, rgb, thermal):
-        # 提取多感受野特征（保持分辨率）
+        # 提取多感受野特征
         scale_feats = [scale(rgb) for scale in self.scales]
         multi_feat = torch.cat(scale_feats, dim=1)
 
@@ -101,7 +101,7 @@ class SGS(nn.Module):
         gates = self.gate1(multi_feat)
         gate_rgb, gate_thermal = gates.chunk(2, dim=1)
 
-        # 安全的门控融合
+        # 门控融合
         fused = gate_rgb * rgb + gate_thermal * thermal
         fused = self.fusion_conv(fused)
         fused = self.SA(fused)
@@ -137,7 +137,6 @@ class SimFusion(nn.Module):
         self.cw_mvn = MVS()
         self.cos_sim = nn.CosineSimilarity(dim=1)
 
-        # 最终融合卷积
         self.fusion_conv = nn.Sequential(
             nn.Conv2d(channels * 2, channels, 3, padding=1),
             nn.BatchNorm2d(channels),
@@ -145,8 +144,6 @@ class SimFusion(nn.Module):
         )
 
     def forward(self, rgb, thermal):
-        # 归一化
-
         # 计算相似度
         cos_sim = self.cos_sim(rgb, thermal).unsqueeze(1)
         M = (cos_sim + 1) / 2
@@ -161,7 +158,6 @@ class SEW(nn.Module):
         super().__init__()
         self.DWT = DTCWTForward(J=3, biort='near_sym_b', qshift='qshift_b')
         self.IWT = DTCWTInverse(biort='near_sym_b', qshift='qshift_b')
-        # Sigmoid激活：生成0~1的通道权重
         self.sigmoid = nn.Sigmoid()
         self.conv1x1 = nn.Conv2d(in_channels=inchannel, out_channels=1, kernel_size=1, stride=1, padding=0)
         self.bn = nn.BatchNorm2d(1)
@@ -170,14 +166,14 @@ class SEW(nn.Module):
         self.conv2 = BasicConv2d(inchannel, outchannel)
         self.conv3 = BasicConv2d(outchannel, outchannel)
         self.conv4 = BasicConv2d(outchannel, outchannel)
-        self.SGS = SGS(inchannel)  # 替换为多尺度门控
+        self.SGS = SGS(inchannel) 
 
         self.gate2 = nn.Sequential(
-            nn.Conv2d(outchannel * 2, outchannel, 3, padding=1),  # 特征压缩
+            nn.Conv2d(outchannel * 2, outchannel, 3, padding=1),
             nn.GroupNorm(4, outchannel),
             nn.GELU(),
-            nn.Conv2d(outchannel, 2, 1),  # 输出2个权重图
-            nn.Softmax(dim=1)  # 确保权重和为1
+            nn.Conv2d(outchannel, 2, 1),
+            nn.Softmax(dim=1)
         )
         self.Sim = SimFusion(outchannel)
 
@@ -194,7 +190,7 @@ class SEW(nn.Module):
         x_spatial = self.conv1x1(low)  # 压缩通道至1，聚焦空间分布，shape=[batch, 1, H, W]
         # 步骤2：批归一化稳定训练
         x_spatial = self.bn(x_spatial)
-        # 步骤3：Sigmoid生成空间注意力权重ω₂（文档中公式5：ω₂=R(F(X^S))）
+        # 步骤3：Sigmoid生成空间注意力权重ω₂
         omega2 = self.sigmoid(x_spatial)  # 权重范围[0,1]，shape=[batch, 1, H, W]
         # 使用双线性插值，size 设为 f 的 H 和 W（f.shape[2:] 即 [H_high, W_high]）
         omega2 = F.interpolate(
@@ -224,14 +220,14 @@ class SALayer(nn.Module):
         self.conv = nn.Sequential(
             nn.Conv2d(2, 1, kernel_size, padding=kernel_size // 2, bias=False),
             nn.BatchNorm2d(1),
-            nn.ReLU(),  # 增加非线性
+            nn.ReLU(), 
             nn.Conv2d(1, 1, kernel_size=3, padding=1, bias=False),
             nn.Sigmoid()
         )
 
     def forward(self, x):
         max_pool, _ = torch.max(x, dim=1, keepdim=True)
-        std_pool = torch.std(x, dim=1, keepdim=True)  # 新增标准差特征
+        std_pool = torch.std(x, dim=1, keepdim=True)  # 标准差特征
         feat = torch.cat([max_pool, std_pool], dim=1)
         weights = self.conv(feat)
         return x * weights
@@ -424,8 +420,6 @@ class WCANet(nn.Module):
         return s1, s2, s3, s4, self.sigmoid(s1), self.sigmoid(s2), self.sigmoid(s3), self.sigmoid(s4),edge,lat_loss
     def load_pre(self, path):
         """
-        从指定路径加载预训练权重。
-        参数:
         path (str): 预训练权重文件的路径。
         """
         state_dict = torch.load(path)
@@ -439,4 +433,5 @@ if __name__=='__main__':
     ndsm3 = torch.randn(1, 512, 7, 7)
 
     net = WCANet().cuda()
+
 
